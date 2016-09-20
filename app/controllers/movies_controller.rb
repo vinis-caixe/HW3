@@ -6,8 +6,34 @@ class MoviesController < ApplicationController
     # will render app/views/movies/show.<extension> by default
   end
 
+  # def all_ratings
+  #   %w(G PG PG-13 NC-17 R)
+  # end
+  
   def index
-    @movies = Movie.all
+    #@movies = Movie.all #first version
+    sort = params[:sort] || session[:sort]
+    case sort
+    when 'title'
+      ordering,@title_header = {:title => :asc}, 'hilite'
+    when 'release_date'
+      ordering,@date_header = {:release_date => :asc}, 'hilite'
+    end
+     @all_ratings = Movie.all_ratings
+     @selected_ratings = params[:ratings]|| session[:ratings] || {}
+    
+     if @selected_ratings == {}
+       @selected_ratings = Hash[@all_ratings.map {|rating| [rating, rating]}]
+     end
+
+     if params[:sort] != session[:sort] or params[:ratings] != session[:ratings]
+       session[:sort] = sort
+       session[:ratings] = @selected_ratings
+       redirect_to :sort => sort, :ratings => @selected_ratings and return
+     end
+    @movies = Movie.order(ordering)
+    #@movies = Movie.where(rating: @selected_ratings.keys).order(ordering)
+  
   end
 
   def new
@@ -15,9 +41,15 @@ class MoviesController < ApplicationController
   end
 
   def create
-    @movie = Movie.create!(params[:movie])
+    #params.permit!
+    #@movie = Movie.create!(params[:movie])
+    Movie.create(movie_params)
     flash[:notice] = "#{@movie.title} was successfully created."
     redirect_to movies_path
+  end
+
+  def movie_params
+    params.require(:movie).permit(:title, :rating, :description, :release_date)
   end
 
   def edit
